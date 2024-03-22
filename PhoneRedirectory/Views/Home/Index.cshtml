@@ -1,0 +1,181 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+@using System.Data
+@model DataTable
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+    <span>
+        <label>Telefon Listesi Menüsü Seçiniz</label>
+        &nbsp;&nbsp;
+        <select id="slcDirectoryTypes">
+            <option value="0">Seçiniz</option>
+        </select>
+    </span>
+<br /><br />
+      <div id="divFilters" style="border:solid; padding:15px"></div>
+      <br /><br />
+            <button onclick="RunFilters()">Filtrele</button>
+            <br /><br />
+<table id="tblFilterRes" border="1" cellpadding="5">
+    <thead>
+        <tr>
+            @foreach (System.Data.DataColumn col in Model.Columns)
+            {
+                <th>@col.Caption</th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (System.Data.DataRow row in Model.Rows)
+        {
+            <tr>
+                @foreach (var cell in row.ItemArray)
+                {
+                    <td>@cell.ToString()</td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+<br /><br />
+<div id="tableStore"></div>
+
+<script>
+    $(document).ready(function () {
+        GetDirectoryTypes();
+    });
+
+    function GetDirectoryTypes() {
+        $.ajax({
+            type: "get",
+            url: "/home/DirectoryTypesGet",
+            success: function (d) {
+                if (d.isSuccess) {
+                    $.each(d.data, function (k, v) {
+                        $("#slcDirectoryTypes").append($("<option>").val(v.id).text(v.name).clone());
+                    })
+                }
+                else
+                    alert('liste boş');
+            },
+            error: function (e) {
+                alert('hata - ' + e.status);
+            }
+        })
+    }
+
+    $("#slcDirectoryTypes").change(function () {
+        $("#divFilters").html("");
+        $("#tableStore").html("");
+
+        $.ajax({
+            type: "get",
+            url: "/home/FiltersGet?directoryTypeId=" + $("#slcDirectoryTypes").val(),
+            success: function (d) {
+                if (d.isSuccess) {
+                    $.each(d.data, function (k, v) {
+                        if (v.filterTypeId != 4) {
+                            $("#divFilters").append(
+                                $("<span>").append(
+                                    $("<label>").html(v.filterName)
+                                )
+                                    .append("&nbsp;&nbsp;")
+                                    .append(
+                                        $("<input>").attr("id", "filt_" + v.filterId).attr("type", v.filterType).attr("typeId", v.filterTypeId)
+                                    )
+                            );
+                        }
+                        else
+                            $("#divFilters").append(
+                                $("<span>").append(
+                                    $("<label>").html(v.filterName)
+                                )
+                                    .append("&nbsp;&nbsp;")
+                                    .append(
+                                        $("<select>").attr("id", "filt_" + v.filterId).attr("type", v.filterType).attr("typeId", v.filterTypeId)
+                                            .append($("<option>").val(0).text("Seçiniz"))
+                                    )
+                            );
+
+                        $("#divFilters").append("<br/><br/>");
+                    })
+
+                    CountriesAssign();
+                    PhoneTypesAssign();
+                }
+                else
+                    alert('liste boş');
+            },
+            error: function (e) {
+                alert('hata - ' + e.status);
+            }
+        })
+    })
+
+    function RunFilters() {
+        $("#tableStore").html("");
+        var filters = [];
+
+        $.each($("#divFilters input"), function (k, o) {
+            filters.push({ filterId: $(o).attr("id").replace("filt_", ""), value: $(o).val(), filterTypeId: $(o).attr("typeId") })
+        });
+        $.each($("#divFilters select"), function (k, o) {
+            filters.push({ filterId: $(o).attr("id").replace("filt_", ""), value: $(o).val(), filterTypeId: $(o).attr("typeId") })
+        });
+
+        //var response = { typeId: $("#slcDirectoryTypes").val(), filters: filters };
+
+        //window.location.href = "/home/IndexValue?request=" + JSON.stringify(response);
+
+        $.ajax({
+            type: "post",
+            url: "/IndexValue",
+            data: { typeId: $("#slcDirectoryTypes").val(), filters: filters},
+            success: function (d) {
+                $("#tableStore").html($("<div>").html(d).find("#tblFilterRes").clone());
+            },
+            error: function (e) {
+                alert('hata - ' + e.status);
+            }
+        })
+    }
+
+    function CountriesAssign() {
+        $.ajax({
+            type: "get",
+            url: "/home/AssignCountries",
+            success: function (d) {
+                if (d.isSuccess) {
+                    $.each(d.data, function (k, v) {
+                        $("#filt_4").append($("<option>").val(v.countryId).text(v.countryName).clone());
+                    })
+                }
+                else
+                    alert('liste boş');
+            },
+            error: function (e) {
+                alert('hata - ' + e.status);
+            }
+        })
+    }
+    function PhoneTypesAssign() {
+        $.ajax({
+            type: "get",
+            url: "/home/AssignPhoneTypes",
+            success: function (d) {
+                if (d.isSuccess) {
+                    $.each(d.data, function (k, v) {
+                        $("#filt_2").append($("<option>").val(v.phoneTypesId).text(v.phoneTypesName).clone());
+                    })
+                }
+                else
+                    alert('liste boş');
+            },
+            error: function (e) {
+                alert('hata - ' + e.status);
+            }
+        })
+    }
+</script>
